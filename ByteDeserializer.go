@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/valyala/fastjson"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -74,5 +76,58 @@ func Deserializer(data []byte, lazyParseEntry bool) *Message {
 	default:
 		panic(errors.New(fmt.Sprintf("unexpected packet type:%s", packet.Type)))
 	}
+
+}
+
+func ReadingFlatMSG(data []byte) *CommonMessage {
+	parser := fastjson.Parser{}
+
+	value, err := parser.ParseBytes(data)
+	if err != nil {
+		panic(err)
+	}
+
+	message := &CommonMessage{}
+
+	// 解析JSON数据并填充到CommonMessage结构体
+	message.Database = string(value.GetStringBytes("database"))
+	message.Table = string(value.GetStringBytes("table"))
+	message.PkNames = make([]string, 0)
+	for _, pk := range value.GetArray("pkNames") {
+		message.PkNames = append(message.PkNames, string(pk.GetStringBytes()))
+	}
+	message.IsDdl = value.GetBool("isDdl")
+	message.Type = string(value.GetStringBytes("type"))
+	message.Es = value.GetInt64("es")
+	message.Ts = value.GetInt64("ts")
+	message.SQL = string(value.GetStringBytes("sql"))
+
+	dataArray := value.GetArray("data")
+	message.Data = make([]map[string]interface{}, 0)
+	for _, data := range dataArray {
+		dataMap := make(map[string]interface{})
+
+		dataMap["id"] = data.GetInt64("id")
+		dataMap["comment"] = data.GetStringBytes("comment")
+		dataMap["created_time"] = data.GetStringBytes("created_time")
+		dataMap["updated_time"] = data.GetStringBytes("updated_time")
+
+		message.Data = append(message.Data, dataMap)
+	}
+
+	oldArray := value.GetArray("old")
+	message.Old = make([]map[string]interface{}, 0)
+	for _, oldData := range oldArray {
+		oldDataMap := make(map[string]interface{})
+
+		oldDataMap["id"] = oldData.GetInt64("id")
+		oldDataMap["comment"] = oldData.GetStringBytes("comment")
+		oldDataMap["created_time"] = oldData.GetStringBytes("created_time")
+		oldDataMap["updated_time"] = oldData.GetStringBytes("updated_time")
+
+		message.Old = append(message.Old, oldDataMap)
+	}
+
+	return message
 
 }

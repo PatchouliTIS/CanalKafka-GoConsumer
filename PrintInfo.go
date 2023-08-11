@@ -13,6 +13,7 @@ import (
 // var earliestES int64 = 0
 var earliestTS int64 = 0
 var earliestCT int64 = 0 // SQL建立时间
+
 // var earliestUT int64 = 0 // SQL更新时间
 
 // var latestES int64 = 0
@@ -79,7 +80,7 @@ func PrintProtoMessage(msg *sarama.ConsumerMessage) error {
 			current = time.Now().UnixMilli()
 
 			if earliestCT == 0 || current-earliestCT > 30000 {
-
+				fmt.Printf(">>>>>>>>>RESET milestone<<<<<<<<<<<<<\n")
 				earliestTS = cmsg.Ts
 				if len(cmsg.Data) > 0 && (cmsg.Type == "INSERT") {
 					earliestCT = cmsg.GetCreatedTime()[0].UnixMilli()
@@ -173,7 +174,7 @@ func PrintFlatMessage(msg *sarama.ConsumerMessage) error {
 
 	var err error
 
-	if earliestCT == 0 || current-earliestCT > 30000 {
+	if earliestCT == 0 || current-earliestCT > 60000 {
 
 		fmt.Printf(">>>>>>>>>RESET milestone<<<<<<<<<<<<<\n")
 
@@ -196,27 +197,8 @@ func PrintFlatMessage(msg *sarama.ConsumerMessage) error {
 	sql2logs += float64(latestTS) - float64(latestCT)
 	sqlCnt++
 
-	// if msg.Timestamp.UnixMilli() > cmsg.Ts {
-	// 	logs2kafka += float64(kafkaTime) - float64(cmsg.Ts)
-	// 	logsCnt++
-	// }
-
 	kafka2server += float64(current) - float64(latestTS)
 	kafkaCnt++
-
-	// 将 ID 号收集起来
-	// if len(cmsg.Data) > 0 && cmsg.GetId() != -1 {
-	// 	orders = append(orders, cmsg.GetId())
-	// }
-
-	// preCT = earliestCT
-
-	// 使用latestCT 与 earliestCT 进行比较，如果不同则说明进入到第二个事务执行阶段
-	// if latestCT > preCT {
-	// 	txCnt++
-	// 	// fmt.Printf("》〉》〉〉》新事务执行时间：%d \n", latestCT)
-	// 	preCT = latestCT
-	// }
 
 	meanCost += float64(current - latestCT)
 	costCnt++
@@ -232,5 +214,92 @@ func PrintFlatMessage(msg *sarama.ConsumerMessage) error {
 		earliestCT, earliestTS, latestCT, latestTS, msg.Timestamp.UnixMilli(), current, current-earliestCT, current-earliestTS, sql2logs/float64(sqlCnt), kafka2server/float64(kafkaCnt), meanCost/float64(costCnt)) ///float64(kafkaCnt)
 
 	fmt.Printf("-----------------------------------------------------------------------------------\n")
+	return nil
+}
+
+func PrintPureFlat(msg *sarama.ConsumerMessage) error {
+	if msg == nil {
+		return errors.New("Message is Empty!")
+	}
+
+	cmsg := ReadingFlatMSG(msg.Value)
+
+	kafkaTime := msg.Timestamp.UnixMilli()
+
+	current = time.Now().UnixMilli()
+
+	if earliestCT == 0 || current-earliestCT > 60000 {
+		fmt.Printf(">>>>>>>>>RESET milestone<<<<<<<<<<<<<\n")
+		earliestTS = cmsg.Ts
+		if len(cmsg.Data) > 0 && (cmsg.Type == "INSERT") {
+			tmpTimeByte, ok := cmsg.Data[0]["created_time"].([]byte)
+			if ok {
+				timeStr := string(tmpTimeByte)
+
+				timeStamp, err := time.ParseInLocation("2006-01-02 15:04:05.000", timeStr, time.Local)
+				if err != nil {
+					panic(err)
+				} else {
+					earliestCT = timeStamp.UnixMilli()
+				}
+			} else {
+				panic(ok)
+			}
+		} else {
+			earliestCT = cmsg.Es
+		}
+
+		sql2logs = 0
+		sqlCnt = 0
+		kafka2server = 0
+		kafkaCnt = 0
+		meanCost = 0
+		costCnt = 0
+
+	}
+
+	size := len(cmsg.Data)
+	latestTS = cmsg.Ts
+	if len(cmsg.Data) > 0 && (cmsg.Type == "INSERT") {
+		tmpTimeByte, ok := cmsg.Data[size-1]["created_time"].([]byte)
+		if ok {
+			timeStr := string(tmpTimeByte)
+			timeStamp, err := time.ParseInLocation("2006-01-02 15:04:05.000", timeStr, time.Local)
+			if err != nil {
+				panic(err)
+			} else {
+				latestCT = timeStamp.UnixMilli()
+			}
+		} else {
+			panic(ok)
+		}
+	} else {
+		latestCT = cmsg.Es
+	}
+
+	// 先行计算每个语句的值
+	sql2logs += float64(latestTS) - float64(latestCT)
+	sqlCnt++
+
+	kafka2server += float64(current) - float64(latestTS)
+	kafkaCnt++
+
+	meanCost += float64(current - latestCT)
+	costCnt++
+
+	// fmt.Printf("Message topic:%q\tKafkaEntityCreatedTime:%d\tClientCurrentTime:%d \nPartition:%d\tOffset:%d\nKey:%s\nValues:%+v\n\n",
+	// 	msg.Topic, msg.Timestamp.UnixMicro(), time.Now().UnixMicro(), msg.Partition, msg.Offset, string(msg.Key), string(msg.Value))
+	fmt.Printf("本批次内：\t更新条目:%d \n最早数据库时间:\t%d\t最早DB日志时间:\t%d    \n最新数据库时间:\t%d\t最新DB日志时间:\t%d   \nKafkaTime:\t%d\tServerTime:\t%d\n总共从数据库到客户端:\t%d\t从Canal到消费客户端:%d\nsql2logs:\t%f\tlogs2server:\t%f\tsql2server:\t%f\n",
+		len(cmsg.Data), earliestCT, earliestTS, latestCT, latestTS, kafkaTime, current, current-earliestCT, current-earliestTS, sql2logs/float64(sqlCnt), kafka2server/float64(kafkaCnt), meanCost/float64(costCnt)) ///float64(kafkaCnt)
+
+	fmt.Printf("-----------------------------------------------------------------------------------\n")
+	return nil
+}
+
+func PrintSimpleMSG(msg *sarama.ConsumerMessage) error {
+	fmt.Printf("Message topic:%q\tKafkaEntityCreatedTime:%d\tClientCurrentTime:%d \nPartition:%d\tOffset:%d\nKey:%s\nValues:%+v\n\n",
+
+		msg.Topic, msg.Timestamp.UnixMicro(), time.Now().UnixMicro(), msg.Partition, msg.Offset, string(msg.Key), string(msg.Value))
+
 	return nil
 }
