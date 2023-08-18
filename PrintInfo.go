@@ -50,10 +50,6 @@ func PrintProtoMessage(msg *sarama.ConsumerMessage) error {
 		return errors.New("Message is Empty!")
 	}
 
-	// beforeDES = time.Now().UnixMilli()
-
-	// fmt.Printf("time - earliestCT = %d - %d = %d\n", beforeDES, earliestCT, beforeDES-earliestCT)
-
 	// 反序列化
 	// fmt.Println(">>>ENTERING KAFKA VALUE DES...")
 	message := Deserializer(msg.Value, false)
@@ -72,10 +68,6 @@ func PrintProtoMessage(msg *sarama.ConsumerMessage) error {
 			}
 
 			// fmt.Printf("ENTERING CMSG CREATE/UPDATE TIME >>> .   time size: %d . %d\n", len(cmsg.GetCreatedTime()), len(cmsg.GetUpdatedTime()))
-			// for ptr := 0; ptr < len(cmsg.GetCreatedTime()); ptr++ {
-			// 	fmt.Printf("latestCT: %d \t", cmsg.GetCreatedTime()[ptr].UnixMicro())
-			// }
-			// fmt.Printf("\nes:%d\n", cmsg.Es)
 
 			current = time.Now().UnixMilli()
 
@@ -94,42 +86,24 @@ func PrintProtoMessage(msg *sarama.ConsumerMessage) error {
 				kafkaCnt = 0
 				meanCost = 0
 				costCnt = 0
-
 			}
 
-			size := len(cmsg.GetCreatedTime())
+			// size := len(cmsg.GetCreatedTime())
 			latestTS = cmsg.Ts
 			if len(cmsg.Data) > 0 && (cmsg.Type == "INSERT") {
-				latestCT = cmsg.GetCreatedTime()[size-1].UnixMilli()
+				latestCT = cmsg.GetCreatedTime()[0].UnixMilli()
 			} else {
 				latestCT = cmsg.Es
 			}
+
+			// fmt.Printf("CommonMessage'size:\t%d\n", len(cmsg.GetCreatedTime()))
 
 			// 先行计算每个语句的值
 			sql2logs += float64(latestTS) - float64(latestCT)
 			sqlCnt++
 
-			// if msg.Timestamp.UnixMilli() > cmsg.Ts {
-			// 	logs2kafka += float64(kafkaTime) - float64(cmsg.Ts)
-			// 	logsCnt++
-			// }
-
 			kafka2server += float64(current) - float64(latestTS)
 			kafkaCnt++
-
-			// 将 ID 号收集起来
-			// if len(cmsg.Data) > 0 && cmsg.GetId() != -1 {
-			// 	orders = append(orders, cmsg.GetId())
-			// }
-
-			// preCT = earliestCT
-
-			// 使用latestCT 与 earliestCT 进行比较，如果不同则说明进入到第二个事务执行阶段
-			// if latestCT > preCT {
-			// 	txCnt++
-			// 	// fmt.Printf("》〉》〉〉》新事务执行时间：%d \n", latestCT)
-			// 	preCT = latestCT
-			// }
 
 			meanCost += float64(current - latestCT)
 			costCnt++
@@ -139,14 +113,16 @@ func PrintProtoMessage(msg *sarama.ConsumerMessage) error {
 
 		}
 
+		fmt.Printf("当前KafkaMessage内:\n更新条目:%d \n最早数据库时间:\t%d\t最早DB日志时间:\t%d    \n最新数据库时间:\t%d\t最新DB日志时间:\t%d   \nKafkaTime:\t%d\tServerTime:\t%d\n总共从数据库到客户端:\t%d\t从Canal到消费客户端:%d\nsql2logs:\t%f\tlogs2server:\t%f\tsql2server:\t%f\n",
+			//msg.BlockTimestamp.UnixMilli(),
+			len(message.Entries), earliestCT, earliestTS, latestCT, latestTS, kafkaTime, current, current-earliestCT, current-earliestTS, sql2logs/float64(sqlCnt), kafka2server/float64(kafkaCnt), meanCost/float64(costCnt)) ///float64(kafkaCnt)
+
+		fmt.Printf("-----------------------------------------------------------------------------------\n")
+
 	} else {
-		fmt.Printf("FAILED commonMessages DES: %s \n", err)
+		fmt.Printf("\nFAILED commonMessages DES: %s \n", err)
 	}
 
-	fmt.Printf("本批次内：\t更新条目:%d \n最早数据库时间:\t%d\t最早DB日志时间:\t%d    \n最新数据库时间:\t%d\t最新DB日志时间:\t%d   \nKafkaTime:\t%d\tServerTime:\t%d\n总共从数据库到客户端:\t%d\t从Canal到消费客户端:%d\nsql2logs:\t%f\tlogs2server:\t%f\tsql2server:\t%f\n",
-		len(message.Entries), earliestCT, earliestTS, latestCT, latestTS, kafkaTime, current, current-earliestCT, current-earliestTS, sql2logs/float64(sqlCnt), kafka2server/float64(kafkaCnt), meanCost/float64(costCnt)) ///float64(kafkaCnt)
-
-	fmt.Printf("-----------------------------------------------------------------------------------\n")
 	// fmt.Print("当前次序：\n")
 	// for _, v := range orders {
 	// 	fmt.Printf("%d . ", v)
@@ -155,7 +131,7 @@ func PrintProtoMessage(msg *sarama.ConsumerMessage) error {
 	return nil
 }
 
-func PrintFlatMessage(msg *sarama.ConsumerMessage) error {
+func PrintStringMessage(msg *sarama.ConsumerMessage) error {
 	if msg == nil {
 		return errors.New("Message is Empty!")
 	}
@@ -217,7 +193,7 @@ func PrintFlatMessage(msg *sarama.ConsumerMessage) error {
 	return nil
 }
 
-func PrintPureFlat(msg *sarama.ConsumerMessage) error {
+func PrintJSONMessage(msg *sarama.ConsumerMessage) error {
 	if msg == nil {
 		return errors.New("Message is Empty!")
 	}

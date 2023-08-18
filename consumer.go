@@ -42,7 +42,8 @@ func CreateNewConsumer(addressSet []string, consumerGroupTopic map[string]Consum
 		consumer.consumerConfig = sarama.NewConfig()
 		consumer.consumerConfig.Consumer.Return.Errors = false
 		consumer.consumerConfig.Version = sarama.V2_6_0_0
-		consumer.consumerConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
+		consumer.consumerConfig.Consumer.Offsets.Initial = sarama.OffsetNewest
+		consumer.consumerConfig.Consumer.Offsets.AutoCommit.Enable = true
 	}
 
 	client, err := sarama.NewClient(addressSet, consumer.consumerConfig)
