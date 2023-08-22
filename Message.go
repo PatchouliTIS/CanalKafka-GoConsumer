@@ -5,30 +5,31 @@ import (
 )
 
 // const SerialVersionUID uint64 = 1234034768477580009
+// serialVersionUID 是Java特有的，JVM根据这一UID进行序列化。
 
 type Message struct {
-	serialVersionUID uint64
-	ID               int64
-	Entries          []*protocal_message.Entry
-	Raw              bool
-	RawEntries       [][]byte
+	// serialVersionUID uint64
+	ID         int64
+	Entries    []*protocal_message.Entry
+	Raw        bool
+	RawEntries [][]byte
 }
 
 func NewMessage(id int64, entries []*protocal_message.Entry) *Message {
 	return &Message{
-		serialVersionUID: 1234034768477580009,
-		ID:               id,
-		Entries:          entries,
-		Raw:              false,
+		// serialVersionUID: 1234034768477580009,
+		ID:      id,
+		Entries: entries,
+		Raw:     false,
 	}
 }
 
 func NewRawMessage(id int64, entries [][]byte) *Message {
 	return &Message{
-		serialVersionUID: 1234034768477580009,
-		ID:               id,
-		Raw:              true,
-		RawEntries:       entries,
+		// serialVersionUID: 1234034768477580009,
+		ID:         id,
+		Raw:        true,
+		RawEntries: entries,
 	}
 }
 

@@ -11,6 +11,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+/*
+根据.proto文件的定义，层层解析
+*/
 func Deserializer(data []byte, lazyParseEntry bool) *Message {
 	if len(data) > 0 == false {
 		fmt.Printf("Args Wrong! Data is empty!!!")
@@ -79,6 +82,11 @@ func Deserializer(data []byte, lazyParseEntry bool) *Message {
 
 }
 
+/*
+*
+
+	使用fastjson解析flatmessage
+*/
 func ReadingFlatMSG(data []byte) *CommonMessage {
 	parser := fastjson.Parser{}
 
